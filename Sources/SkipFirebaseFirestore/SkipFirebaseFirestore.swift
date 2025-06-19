@@ -1114,7 +1114,13 @@ fileprivate func deepSwift(value: Any) -> Any {
     } else if let collection = value as? kotlin.collections.Collection<Any> {
         return deepSwift(collection: collection)
     } else {
-        return value
+        if let v = value as? kotlin.Long {
+            return v.toInt()
+        } else if let v = value as? kotlin.Double {
+            return v.toDouble()
+        } else {
+            return value
+        }
     }
 }
 
