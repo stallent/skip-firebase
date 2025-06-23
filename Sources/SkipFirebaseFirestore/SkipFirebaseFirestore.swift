@@ -929,9 +929,14 @@ public class DocumentReference: KotlinConverting<com.google.firebase.firestore.D
     }
 
     public func updateData(_ keyValues: [String: Any]) async throws {
+        let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+        debug.log("updateData0")
         do {
+            debug.log("updateData1")
             try ref.update(keyValues.kotlin() as! Map<String, Any>).await()
+            debug.log("updateData2 ")
         } catch is com.google.firebase.firestore.FirebaseFirestoreException {
+            debug.log("updateData error \(error)")
             throw asNSError(firestoreException: error)
         }
     }
