@@ -823,6 +823,10 @@ public class DocumentSnapshot: KotlinConverting<com.google.firebase.firestore.Do
             return nil
         }
     }
+    
+    public var reference: DocumentReference {
+        DocumentReference(ref: doc.getReference())
+    }
 
     public func get(_ fieldName: String) -> Any? {
         guard let value = doc.get(fieldName) else {
@@ -839,10 +843,6 @@ public class QueryDocumentSnapshot : DocumentSnapshot {
 
     public init(snapshot: com.google.firebase.firestore.QueryDocumentSnapshot) {
         super.init(doc: snapshot)
-    }
-
-    public var reference: DocumentReference {
-        DocumentReference(ref: snapshot.reference)
     }
 
     override public func data() -> [String: Any] {
@@ -930,13 +930,10 @@ public class DocumentReference: KotlinConverting<com.google.firebase.firestore.D
 
     public func updateData(_ keyValues: [String: Any]) async throws {
         let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
-        debug.log("updateData0")
+
         do {
-            debug.log("updateData1")
             try ref.update(keyValues.kotlin() as! Map<String, Any>).await()
-            debug.log("updateData2 ")
         } catch is com.google.firebase.firestore.FirebaseFirestoreException {
-            debug.log("updateData error \(error)")
             throw asNSError(firestoreException: error)
         }
     }
