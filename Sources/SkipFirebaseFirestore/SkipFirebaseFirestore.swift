@@ -823,6 +823,10 @@ public class DocumentSnapshot: KotlinConverting<com.google.firebase.firestore.Do
             return nil
         }
     }
+    
+    public var reference: DocumentReference {
+        DocumentReference(ref: doc.getReference())
+    }
 
     public func get(_ fieldName: String) -> Any? {
         guard let value = doc.get(fieldName) else {
@@ -839,10 +843,6 @@ public class QueryDocumentSnapshot : DocumentSnapshot {
 
     public init(snapshot: com.google.firebase.firestore.QueryDocumentSnapshot) {
         super.init(doc: snapshot)
-    }
-
-    public var reference: DocumentReference {
-        DocumentReference(ref: snapshot.reference)
     }
 
     override public func data() -> [String: Any] {
@@ -929,6 +929,8 @@ public class DocumentReference: KotlinConverting<com.google.firebase.firestore.D
     }
 
     public func updateData(_ keyValues: [String: Any]) async throws {
+        let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+
         do {
             try ref.update(keyValues.kotlin() as! Map<String, Any>).await()
         } catch is com.google.firebase.firestore.FirebaseFirestoreException {
@@ -1114,7 +1116,13 @@ fileprivate func deepSwift(value: Any) -> Any {
     } else if let collection = value as? kotlin.collections.Collection<Any> {
         return deepSwift(collection: collection)
     } else {
-        return value
+        if let v = value as? kotlin.Long {
+            return v.toInt()
+        } else if let v = value as? kotlin.Double {
+            return v.toDouble()
+        } else {
+            return value
+        }
     }
 }
 

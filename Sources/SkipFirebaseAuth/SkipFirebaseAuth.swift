@@ -3,6 +3,7 @@
 #if SKIP
 import Foundation
 import SkipFirebaseCore
+import SkipFoundation
 import kotlinx.coroutines.tasks.await
 import android.net.Uri
 
@@ -44,6 +45,12 @@ public final class Auth {
     /// https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth#createUserWithEmailAndPassword(java.lang.String,java.lang.String)
     public func createUser(withEmail email: String, password: String) async throws -> AuthDataResult {
         let result = platformValue.createUserWithEmailAndPassword(email, password).await()
+        return AuthDataResult(result)
+    }
+    
+    /// https://firebase.google.com/docs/reference/kotlin/com/google/firebase/auth/FirebaseAuth#signInWithCredential(com.google.firebase.auth.AuthCredential)
+    public func signIn(with: AuthCredential) async throws -> AuthDataResult {
+        let result = platformValue.signInWithCredential(with.platformValue).await()
         return AuthDataResult(result)
     }
 
@@ -220,6 +227,8 @@ public class UserMetadata {
     }
 }
 
+
+
 public class UserProfileChangeRequest/*: KotlinConverting<com.google.firebase.auth.UserProfileChangeRequest>*/ {
     var user: User
 
@@ -264,6 +273,85 @@ public class EmailAuthProvider {
         return AuthCredential(credential)
     }
 }
+
+
+//----------------------------------------------------
+
+
+class VerificationStateChangedCallbacks: com.google.firebase.auth.PhoneAuthProvider.OnVerificationStateChangedCallbacks {
+    let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+    
+    var onOtpSent: ((String) -> Void)?
+    
+    init() {}
+
+    override func onVerificationCompleted(credential: com.google.firebase.auth.PhoneAuthCredential) {
+        debug.log("onVerificationCompleted: \(credential)")
+    }
+
+    override func onVerificationFailed(exception: com.google.firebase.FirebaseException) {
+        debug.log("onVerificationFailed: \(exception)")
+    }
+    
+    override func onCodeSent(verificationId: String, forceResendingToken: com.google.firebase.auth.PhoneAuthProvider.ForceResendingToken) {
+        debug.log("onCodeSent: \(verificationId)")
+        self.onOtpSent?(verificationId)
+    }
+    
+    override func onCodeAutoRetrievalTimeOut(verificationId: String) {
+        debug.log("onCodeAutoRetrievalTimeOut: \(verificationId)")
+    }
+}
+
+public class PhoneAuthProvider: Equatable {
+
+    public init() {}
+
+    public static func provider() -> PhoneAuthProvider {
+        PhoneAuthProvider()
+    }
+    
+    public func heyMan(){
+        let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+        debug.log("Hello, World!")
+        
+        let callbacks = VerificationStateChangedCallbacks()
+        
+        var options = com.google.firebase.auth.PhoneAuthOptions.newBuilder(Auth.auth().platformValue)
+            .setPhoneNumber("+16155556789")
+            .setTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .setCallbacks(callbacks)
+            .build()
+        
+        //  let result = platformValue.signInWithEmailAndPassword(email, password).await()
+        com.google.firebase.auth.PhoneAuthProvider.verifyPhoneNumber(options)
+        
+        debug.log("Hello, World!2 \(options)")
+    }
+    
+    public func verifyPhoneNumber(_ phone: String, _ completion:@escaping (String?, Error?) -> ()){
+        let callbacks = VerificationStateChangedCallbacks()
+        
+        callbacks.onOtpSent = { code in
+            completion(code, nil)
+        }
+        var options = com.google.firebase.auth.PhoneAuthOptions.newBuilder(Auth.auth().platformValue)
+            .setPhoneNumber(phone)
+            .setTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .setCallbacks(callbacks)
+            .build()
+        
+        //  let result = platformValue.signInWithEmailAndPassword(email, password).await()
+        com.google.firebase.auth.PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+    
+    public func credential(withVerificationID vid: String, verificationCode otp: String) -> AuthCredential {
+        let credential = com.google.firebase.auth.PhoneAuthProvider.getCredential(vid, otp)
+        return AuthCredential(credential)
+    }
+        
+}
+
 
 #endif
 #endif
