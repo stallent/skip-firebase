@@ -229,6 +229,10 @@ public class StorageReference: KotlinConverting<com.google.firebase.storage.Stor
     public func child(_ path: String) -> StorageReference {
         return StorageReference(platformValue.child(path))
     }
+    
+    public func listAll() async throws -> StorageListResult {
+        return StorageListResult(result: platformValue.listAll().await())
+    }
 
     /// Throws `StorageException`
     public func downloadURL() async throws -> URL {
@@ -249,9 +253,22 @@ public class StorageReference: KotlinConverting<com.google.firebase.storage.Stor
     }
 
     /// Error is `StorageException`
+    public func putFileTwo(from fileURL: URL, metadata: StorageMetadata? = nil, completion: @escaping (_: StorageMetadata?, _: Error?) -> Void = { _, _ in }) -> StorageUploadTask {
+        let fileURI: android.net.Uri = android.net.Uri.parse(fileURL.kotlin().toString())
+
+        let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+        
+        let uploadTask = metadata == nil ? platformValue.putFile(fileURI) : platformValue.putFile(fileURI, metadata!.platformValue, nil)
+        
+        return StorageUploadTask(platformValue: uploadTask)
+    }
+
+    /// Error is `StorageException`
     public func putFile(from fileURL: URL, metadata: StorageMetadata? = nil, completion: @escaping (_: StorageMetadata?, _: Error?) -> Void = { _, _ in }) -> StorageUploadTask {
         let fileURI: android.net.Uri = android.net.Uri.parse(fileURL.kotlin().toString())
 
+        let debug: Logger = Logger(subsystem: "com.stalefish.MusterDev", category: "MusterLog")
+        
         let uploadTask = metadata == nil ? platformValue.putFile(fileURI) : platformValue.putFile(fileURI, metadata!.platformValue, nil)
         uploadTask.addOnFailureListener { exception in
             completion(nil, ErrorException(exception))
@@ -261,11 +278,14 @@ public class StorageReference: KotlinConverting<com.google.firebase.storage.Stor
             } else {
                 completion(nil, nil)
             }
+        }.addOnProgressListener { taskSnapshot in
+            
         }
 
         return StorageUploadTask(platformValue: uploadTask)
     }
 
+    
     // TODO: Support onProgress once SKIP has support for Progress
     /// Error is `StorageException`
     public func putFileAsync(from url: URL, metadata: StorageMetadata? = nil) async throws -> StorageMetadata {
@@ -404,8 +424,48 @@ public final class StorageUploadTask : StorageTaskManagement {
         platformValue.resume()
         return
     }
+
+    public func addOnSuccessListener(_ listener: @escaping (UploadTaskSnapshot) -> Void)  {
+        platformValue.addOnSuccessListener { snapper in
+            listener(UploadTaskSnapshot(snapshot: snapper))
+        }
+        return
+    }
+    
+    public func addOnFailureListener(_ listener: @escaping (Error) -> Void)  {
+        platformValue.addOnFailureListener { error in
+            listener(ErrorException(error))//ErrorException(exception)
+        }
+        return
+    }
+    
+    public func addOnProgressListener(_ listener: @escaping (UploadTaskSnapshot) -> Void)  {
+        platformValue.addOnProgressListener { snapper in
+            listener(UploadTaskSnapshot(snapshot: snapper))
+        }
+        return
+    }
 }
 
+public class UploadTaskSnapshot: KotlinConverting<com.google.firebase.storage.UploadTask.TaskSnapshot> {
+    public let snapshot: com.google.firebase.storage.UploadTask.TaskSnapshot
+    
+    public init(snapshot: com.google.firebase.storage.UploadTask.TaskSnapshot) {
+        self.snapshot = snapshot
+    }
+    
+    // SKIP @nooverride
+    public override func kotlin(nocopy: Bool = false) -> com.google.firebase.storage.UploadTask.TaskSnapshot {
+        snapshot
+    }
+    
+    public func progress() -> Double {
+        let total = snapshot.getTotalByteCount()
+        let completed = snapshot.getBytesTransferred()
+        return Double(completed) / Double(total)
+    }
+    
+}
 public class StorageDownloadTask {
 }
 
@@ -439,6 +499,25 @@ public final class StorageFileDownloadTask : StorageDownloadTask, StorageTaskMan
         platformValue.resume()
         return
     }
+}
+
+public class StorageListResult: KotlinConverting<com.google.firebase.storage.ListResult> {
+    public let result: com.google.firebase.storage.ListResult
+    
+    public init(result: com.google.firebase.storage.ListResult) {
+        self.result = result
+    }
+    
+    // SKIP @nooverride
+    public override func kotlin(nocopy: Bool = false) -> com.google.firebase.storage.ListResult {
+        result
+    }
+    
+
+    public var items: [StorageReference] {
+        return Array(result.items.map { StorageReference(platformValue: $0) })
+    }
+    
 }
 
 #endif
