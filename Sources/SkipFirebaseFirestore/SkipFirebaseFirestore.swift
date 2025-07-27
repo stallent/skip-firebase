@@ -887,6 +887,15 @@ public class DocumentReference: KotlinConverting<com.google.firebase.firestore.D
         }
     }
 
+    public func getDocument(source: FirestoreSource) async throws -> DocumentSnapshot {
+        do {
+            let snapshot = try ref.get(source.source).await()
+            return DocumentSnapshot(doc: snapshot)
+        } catch is com.google.firebase.firestore.FirebaseFirestoreException {
+            throw asNSError(firestoreException: error)
+        }
+    }
+    
     public func getDocument(completion: @escaping (_ snapshot: DocumentSnapshot?, _ error: (any Error)?) -> Void) {
         ref.get().addOnSuccessListener { documentSnapshot in
             completion(DocumentSnapshot(doc: documentSnapshot), nil)
