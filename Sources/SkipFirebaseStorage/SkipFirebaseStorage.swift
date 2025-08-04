@@ -301,7 +301,24 @@ public class StorageReference: KotlinConverting<com.google.firebase.storage.Stor
     }
 
     /// Error is `StorageException`
-    public func putData(_ uploadData: Data, metadata: StorageMetadata? = nil, completion: @escaping (_: StorageMetadata?, _: Error?) -> Void) -> StorageUploadTask {
+    public func putData(_ uploadData: Data, metadata: StorageMetadata? = nil, completion: @escaping (_: StorageMetadata?, _: Error?) -> Void = {_, _ in }) -> StorageUploadTask {
+        // putBytes(bytes, metadata) is @NonNull, so we need to use different methods for null vs. non-null metadata parameter
+        let uploadTask = metadata == nil ? platformValue.putBytes(uploadData.platformValue) : platformValue.putBytes(uploadData.platformValue, metadata!.platformValue)
+
+        uploadTask.addOnFailureListener { exception in
+            completion(nil, ErrorException(exception))
+        }.addOnSuccessListener { taskSnapshot in
+            if let metadata = taskSnapshot.metadata {
+                completion(StorageMetadata(platformValue: metadata), nil)
+            } else {
+                completion(nil, nil)
+            }
+        }
+
+        return StorageUploadTask(platformValue: uploadTask)
+    }
+    
+    public func putDataTwo(_ uploadData: Data, metadata: StorageMetadata? = nil, completion: @escaping (_: StorageMetadata?, _: Error?) -> Void) -> StorageUploadTask {
         // putBytes(bytes, metadata) is @NonNull, so we need to use different methods for null vs. non-null metadata parameter
         let uploadTask = metadata == nil ? platformValue.putBytes(uploadData.platformValue) : platformValue.putBytes(uploadData.platformValue, metadata!.platformValue)
 
@@ -463,6 +480,13 @@ public class UploadTaskSnapshot: KotlinConverting<com.google.firebase.storage.Up
         let total = snapshot.getTotalByteCount()
         let completed = snapshot.getBytesTransferred()
         return Double(completed) / Double(total)
+    }
+    
+    public var metadata:StorageMetadata? {
+        if let m = snapshot.metadata {
+            return StorageMetadata(platformValue: m)
+        }
+        return nil
     }
     
 }
